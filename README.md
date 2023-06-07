@@ -1,4 +1,4 @@
-> Instructions on how to install, configure, and upgrade **GitLab runners** as AWS EC2 instance
+> Instructions on how to install, configure, and upgrade **GitLab runner** as AWS EC2 instance
 
 ## General info
 
