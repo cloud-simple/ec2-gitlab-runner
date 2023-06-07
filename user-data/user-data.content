@@ -1,0 +1,344 @@
+#! /usr/bin/env bash
+
+TIME_COUNT=10
+GITLAB_RUNNER_USER=gitlab-runner
+
+mkdir -p /root/downloads
+######### ######### ######### ######### ######### #########
+counter=0
+while true ; do
+  echo -e "GET / HTTP/1.0\n\n" | nc google.com 80 -w 5 > /dev/null 2>&1
+  test $? -ne 0 || break
+
+  echo "== log: waiting for internet connection: $counter"
+  sleep 5
+
+  counter=$((counter+1))
+  test $counter -gt $TIME_COUNT && { echo "== err: timeout on waiting for internet connection; exiting" ; exit 255 ; }
+done
+
+echo "== log: internet connection: OK"
+######### ######### ######### ######### ######### #########
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get upgrade -qqy
+
+apt-get install -qqy curl jq unzip
+apt-get install -qqy apt-transport-https ca-certificates software-properties-common
+
+echo "== log: apt-get update, upgrade, install aux tools: DONE"
+######### ######### ######### ######### ######### #########
+curl -fsS --max-time 50 -L -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg \
+  "https://packages.cloud.google.com/apt/doc/apt-key.gpg" || \
+  { echo "== err: timeout on downloading 'kubernetes-archive-keyring.gpg'; exiting" ; exit 255 ; }
+
+echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | \
+  tee /etc/apt/sources.list.d/kubernetes.list
+
+apt-get update
+apt-get install -qqy kubectl
+
+echo "== log: install kubectl: DONE"
+######### ######### ######### ######### ######### #########
+curl -fsS --max-time 50 -L -o /root/downloads/helm.pub "https://baltocdn.com/helm/signing.asc" || \
+  { echo "== err: timeout on downloading 'helm.pub'; exiting" ; exit 255 ; }
+
+cat /root/downloads/helm.pub | gpg --dearmor -o /usr/share/keyrings/helm.gpg
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | \
+  tee /etc/apt/sources.list.d/helm-stable-debian.list > /dev/null
+
+apt-get update
+apt-get install -qqy helm
+
+echo "== log: install helm: DONE"
+######### ######### ######### ######### ######### #########
+curl -fsS --max-time 50 -L -o /root/downloads/docker-ubuntu.pub "https://download.docker.com/linux/ubuntu/gpg" || \
+  { echo "== err: timeout on downloading 'docker-ubuntu.pub'; exiting" ; exit 255 ; }
+
+cat /root/downloads/docker-ubuntu.pub | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+apt-get update
+apt-get install -qqy docker-ce
+
+sudo usermod -aG docker ubuntu
+
+echo "== log: install docker-ce: DONE"
+######### ######### ######### ######### ######### #########
+cat >  /root/downloads/aws-cli.pub << _EOF
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mQINBF2Cr7UBEADJZHcgusOJl7ENSyumXh85z0TRV0xJorM2B/JL0kHOyigQluUG
+ZMLhENaG0bYatdrKP+3H91lvK050pXwnO/R7fB/FSTouki4ciIx5OuLlnJZIxSzx
+PqGl0mkxImLNbGWoi6Lto0LYxqHN2iQtzlwTVmq9733zd3XfcXrZ3+LblHAgEt5G
+TfNxEKJ8soPLyWmwDH6HWCnjZ/aIQRBTIQ05uVeEoYxSh6wOai7ss/KveoSNBbYz
+gbdzoqI2Y8cgH2nbfgp3DSasaLZEdCSsIsK1u05CinE7k2qZ7KgKAUIcT/cR/grk
+C6VwsnDU0OUCideXcQ8WeHutqvgZH1JgKDbznoIzeQHJD238GEu+eKhRHcz8/jeG
+94zkcgJOz3KbZGYMiTh277Fvj9zzvZsbMBCedV1BTg3TqgvdX4bdkhf5cH+7NtWO
+lrFj6UwAsGukBTAOxC0l/dnSmZhJ7Z1KmEWilro/gOrjtOxqRQutlIqG22TaqoPG
+fYVN+en3Zwbt97kcgZDwqbuykNt64oZWc4XKCa3mprEGC3IbJTBFqglXmZ7l9ywG
+EEUJYOlb2XrSuPWml39beWdKM8kzr1OjnlOm6+lpTRCBfo0wa9F8YZRhHPAkwKkX
+XDeOGpWRj4ohOx0d2GWkyV5xyN14p2tQOCdOODmz80yUTgRpPVQUtOEhXQARAQAB
+tCFBV1MgQ0xJIFRlYW0gPGF3cy1jbGlAYW1hem9uLmNvbT6JAlQEEwEIAD4WIQT7
+Xbd/1cEYuAURraimMQrMRnJHXAUCXYKvtQIbAwUJB4TOAAULCQgHAgYVCgkICwIE
+FgIDAQIeAQIXgAAKCRCmMQrMRnJHXJIXEAChLUIkg80uPUkGjE3jejvQSA1aWuAM
+yzy6fdpdlRUz6M6nmsUhOExjVIvibEJpzK5mhuSZ4lb0vJ2ZUPgCv4zs2nBd7BGJ
+MxKiWgBReGvTdqZ0SzyYH4PYCJSE732x/Fw9hfnh1dMTXNcrQXzwOmmFNNegG0Ox
+au+VnpcR5Kz3smiTrIwZbRudo1ijhCYPQ7t5CMp9kjC6bObvy1hSIg2xNbMAN/Do
+ikebAl36uA6Y/Uczjj3GxZW4ZWeFirMidKbtqvUz2y0UFszobjiBSqZZHCreC34B
+hw9bFNpuWC/0SrXgohdsc6vK50pDGdV5kM2qo9tMQ/izsAwTh/d/GzZv8H4lV9eO
+tEis+EpR497PaxKKh9tJf0N6Q1YLRHof5xePZtOIlS3gfvsH5hXA3HJ9yIxb8T0H
+QYmVr3aIUes20i6meI3fuV36VFupwfrTKaL7VXnsrK2fq5cRvyJLNzXucg0WAjPF
+RrAGLzY7nP1xeg1a0aeP+pdsqjqlPJom8OCWc1+6DWbg0jsC74WoesAqgBItODMB
+rsal1y/q+bPzpsnWjzHV8+1/EtZmSc8ZUGSJOPkfC7hObnfkl18h+1QtKTjZme4d
+H17gsBJr+opwJw/Zio2LMjQBOqlm3K1A4zFTh7wBC7He6KPQea1p2XAMgtvATtNe
+YLZATHZKTJyiqA==
+=vYOk
+-----END PGP PUBLIC KEY BLOCK-----
+_EOF
+
+gpg --import /root/downloads/aws-cli.pub
+
+curl -fsS --max-time 50 -L -o /root/downloads/awscliv2.zip "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" || \
+  { echo "== err: timeout on downloading 'awscliv2.zip'; exiting" ; exit 255 ; }
+curl -fsS --max-time 50 -L -o /root/downloads/awscliv2.sig "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip.sig" || \
+  { echo "== err: timeout on downloading 'awscliv2.sig'; exiting" ; exit 255 ; }
+
+gpg --verify /root/downloads/awscliv2.sig /root/downloads/awscliv2.zip || \
+  { echo "== err: verifying the signature of downloaded 'awscliv2.zip' failed; exiting" ; exit 255 ; }
+
+unzip -u /root/downloads/awscliv2.zip -d /root/downloads/awscliv2 || \
+  { echo "== err: unzipping 'awscliv2.zip' failed; exiting" ; exit 255 ; }
+/root/downloads/awscliv2/aws/install || \
+  { echo "== err: installation of 'aws' cli failed; exiting" ; exit 255 ; }
+type aws || { echo "== err: 'aws' command is not available; exiting" ; exit 255 ; }
+
+aws --version
+echo "== log: install aws-cli: DONE"
+######### ######### ######### ######### ######### #########
+curl -fsS --max-time 50 -L -o /usr/local/bin/gitlab-runner \
+  https://gitlab-runner-downloads.s3.amazonaws.com/latest/binaries/gitlab-runner-linux-amd64 || \
+  { echo "== err: timeout on downloading 'gitlab-runner-linux-amd64'; exiting" ; exit 255 ; }
+
+chmod +x /usr/local/bin/gitlab-runner
+
+useradd --comment 'GitLab Runner' --create-home --shell /bin/bash $GITLAB_RUNNER_USER
+usermod -aG docker $GITLAB_RUNNER_USER
+
+gitlab-runner install --user=$GITLAB_RUNNER_USER --working-directory=/home/${GITLAB_RUNNER_USER}
+rm -fr /home/${GITLAB_RUNNER_USER}/.??*
+
+gitlab-runner --version
+gitlab-runner start
+
+echo "== log: install gitlab runner: DONE"
+######### ######### ######### ######### ######### #########
+cat > /etc/cron.hourly/docker-prune << '_EOF'
+#! /usr/bin/env bash
+# see https://docs.docker.com/config/pruning/
+
+log=/var/log/docker-prune.log
+date +'== Start: %Y.%m.%d %H:%M' >> $log 2>&1
+df -h / | grep -v ^Filesystem >> $log 2>&1
+
+echo '==== System' >> $log 2>&1
+docker system prune --all --force --filter "until=4h" >> $log 2>&1
+echo '==== Buildx' >> $log 2>&1
+docker buildx prune --all --force --filter "until=4h" >> $log 2>&1
+echo '==== Volumes' >> $log 2>&1
+docker volume prune    -f --filter "label!=keep" >> $log 2>&1
+
+date +'== Finish: %Y.%m.%d %H:%M' >> $log 2>&1
+df -h / | grep -v ^Filesystem >> $log 2>&1
+echo >> $log 2>&1
+_EOF
+
+chmod +x /etc/cron.hourly/docker-prune
+
+echo "== log: create docker prune cron job '/etc/cron.hourly/docker-prune': DONE"
+######### ######### ######### ######### ######### #########
+cat > /etc/cron.weekly/docker-rm-stales << '_EOF'
+#! /usr/bin/env bash
+
+log=/var/log/docker-restart.log
+date +'== Start: %Y.%m.%d %H:%M' >> $log 2>&1
+
+clist=$(docker ps -a -q)
+test -z "$clist" || docker rm -f $clist >> $log 2>&1
+
+vlist=$(docker volume ls -q)
+test -z "$vlist" || docker volume rm -f $vlist >> $log 2>&1
+
+systemctl stop docker.socket >> $log 2>&1
+rm -fr /var/lib/docker/ >> $log 2>&1
+systemctl start docker.socket >> $log 2>&1
+
+date +'== Finish: %Y.%m.%d %H:%M' >> $log 2>&1
+echo >> $log 2>&1
+_EOF
+
+chmod +x /etc/cron.weekly/docker-rm-stales
+
+echo "== log: create docker remove stales cron job '/etc/cron.weekly/docker-rm-stales': DONE"
+######### ######### ######### ######### ######### #########
+FULLNAME=$(curl -fsS --max-time 5 http://instance-data/latest/meta-data/tags/instance/Name)
+test -n "$FULLNAME" || { echo "== wrn: returned Instance Tag Name is null; exiting" ; exit 0 ; }
+
+HOSTNAME="${FULLNAME%%.*}"
+
+sed -i "/${FULLNAME}$/d" /etc/hosts
+sed -i "/${HOSTNAME}$/d" /etc/hosts
+echo "127.0.0.1 ${FULLNAME}" >> /etc/hosts
+echo "127.0.0.1 ${HOSTNAME}" >> /etc/hosts
+
+echo "${FULLNAME}" >/etc/hostname
+hostname -F /etc/hostname
+
+echo "== log: setup '/etc/hosts' and '/etc/hostname': DONE"
+######### ######### ######### ######### ######### #########
+mkdir -p /root/scripts
+
+cat > /root/scripts/register-gitlab-runner.sh << '_EOF'
+#! /usr/bin/env bash
+
+test -n "$1" || \
+  { echo "== err: the first arg is empty, should be registration token; exiting" ; exit 255 ; }
+
+REGISTRATION_TOKEN=$1
+CONFIG_TOML=/etc/gitlab-runner/config.toml
+HOST_NAME=$(hostname)
+
+test -s "$CONFIG_TOML" || \
+  { echo "== err: file defined with env variable CONFIG_TOML ('${CONFIG_TOML}') doesn't exist; exiting" ; exit 255 ; }
+
+cp ${CONFIG_TOML} ${CONFIG_TOML}.bckp-`date +%F-%s`
+
+gitlab-runner stop
+
+sed -i '1 i\listen_address = "0.0.0.0:9252"\n' $CONFIG_TOML
+sed -i 's/concurrent *=.*/concurrent = 20/' $CONFIG_TOML
+sed -i 's/session_timeout =.*/session_timeout = 600/' $CONFIG_TOML
+
+for i in 01 ; do
+  gitlab-runner register -n \
+    --url https://gitlab.com/ \
+    --registration-token $REGISTRATION_TOKEN \
+    --tag-list share \
+    --executor docker \
+    --description "$HOST_NAME/docker/share/$i/gitlab.com/example-org" \
+    --docker-image "docker:23.0.5" \
+    --docker-volumes /var/run/docker.sock:/var/run/docker.sock \
+    --limit 15 \
+    --request-concurrency 15
+done
+
+for i in 01 ; do
+  gitlab-runner register -n \
+    --url https://gitlab.com/ \
+    --registration-token $REGISTRATION_TOKEN \
+    --tag-list example-org \
+    --executor shell \
+    --description "$HOST_NAME/shell/example-org/$i/gitlab.com/example-org" \
+    --limit 5 \
+    --request-concurrency 5
+done
+
+gitlab-runner start
+
+echo "== log: gitlab-runner registration: DONE"
+_EOF
+
+chmod +x /root/scripts/register-gitlab-runner.sh
+
+echo "== log: setup runner registration script '/root/scripts/register-gitlab-runner.sh': DONE"
+######### ######### ######### ######### ######### #########
+sudo -u ubuntu -i << '_EOF'
+
+mkdir -p ~/scripts
+
+cat > ~/scripts/add-users.sh << '_EOF_EOF'
+#! /usr/bin/env bash
+
+(
+cd $(mktemp -d)
+git clone git@github.com:example-org/docs/team/public.git || \
+  { echo "== err: git clone failed; exiting" ; exit 255 ; }
+
+test -d public/public_keys || \
+  { echo "== err: no 'public_keys' dir in the cloned repo; exiting" ; exit 255 ; }
+
+cd public/public_keys
+
+for i in `ls -1` ; do
+  echo "useradd -m -s /bin/bash $i"
+  echo "sudo -u $i -i << '_EOF_$i'"
+  echo "mkdir -p -m 700 ~/.ssh"
+  echo "cat > ~/.ssh/authorized_keys << '_EOF_EOF_$i'"
+  cat $i
+  echo "_EOF_EOF_$i"
+  echo "chmod 600 ~/.ssh/authorized_keys"
+  echo "_EOF_$i"
+done | sudo bash
+
+echo "== log: user creation: DONE"
+)
+_EOF_EOF
+
+chmod +x ~/scripts/add-users.sh
+_EOF
+
+echo "== log: setup script to add users '/home/ubuntu/scripts/add-users.sh': DONE"
+######### ######### ######### ######### ######### #########
+sudo -u $GITLAB_RUNNER_USER -i << '_EOF'
+
+mkdir -p ~/.aws
+mkdir -p ~/scripts
+
+cat > ~/.profile << '_EOF_EOF_1'
+alias ll='ls -la'
+_EOF_EOF_1
+
+cat > ~/scripts/update-kube-config.sh << '_EOF_EOF_2'
+#! /usr/bin/env bash
+
+aws eks update-kubeconfig --profile gitlab-ci --region us-east-2 --name "dev-main"
+aws eks update-kubeconfig --profile gitlab-ci --region us-east-2 --name "prod-main"
+aws eks update-kubeconfig --profile gitlab-ci --region us-east-2 --name "dev-ohi1"
+aws eks update-kubeconfig --profile gitlab-ci --region us-east-2 --name "prod-ohi1"
+aws eks update-kubeconfig --profile gitlab-ci --region eu-central-1 --name "dev-fra1"
+aws eks update-kubeconfig --profile gitlab-ci --region eu-central-1 --name "prod-fra1"
+
+echo "== log: kubectl configuration: DONE"
+_EOF_EOF_2
+
+chmod +x ~/scripts/update-kube-config.sh
+_EOF
+
+echo "== log: setup update kube config script '/home/$GITLAB_RUNNER_USER/scripts/update-kube-config.sh': DONE"
+######### ######### ######### ######### ######### #########
+LT_VERSION=$(curl -fsS --max-time 5 http://instance-data/latest/meta-data/tags/instance/aws:ec2launchtemplate:version)
+test -n "$LT_VERSION" || { echo "== wrn: returned EC2 launch template version is null; continue" ; }
+
+INSTANCE_ID=$(curl -fsS --max-time 5 http://instance-data/latest/meta-data/instance-id)
+test -n "$INSTANCE_ID" || { echo "== wrn: returned EC2 instance ID is null; continue" ; }
+
+echo "== msg: instance (name: '$FULLNAME', id: '$INSTANCE_ID') created from LT version: $LT_VERSION"
+
+echo "== msg: to configure all 'kubectl' contexts for $GITLAB_RUNNER_USER user:
+  1) switch to user '$GITLAB_RUNNER_USER'
+  2) setup aws cli credentials in '~/.aws' for the user '$GITLAB_RUNNER_USER'
+  3) run the command '/home/$GITLAB_RUNNER_USER/scripts/update-kube-config.sh' as the user '$GITLAB_RUNNER_USER'
+"
+
+echo "== msg: to register runners in gitlab:
+  1) obtain registration token (<TOKEN>) at 'https://gitlab.com/groups/example-org/-/runners'
+  2) run the command '/root/scripts/register-gitlab-runner.sh <TOKEN>' as root
+"
+
+echo "== msg: to add users to this host:
+  1) make ssh connection to this host with 'ubuntu' user having ssh key for 'git@github.com:example-org/docs/team/public.git' forwarded with ssh agent
+  2) run the command '/home/ubuntu/scripts/add-users.sh' as user 'ubuntu'
+"
