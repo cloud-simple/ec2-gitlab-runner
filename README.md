@@ -1,4 +1,4 @@
-> Documentation related to the project **GitLab runners**
+> Instructions on how to install, configure, and upgrade **GitLab runners** as AWS EC2 instance
 
 ## General info
 
@@ -30,7 +30,7 @@
 1. Create EC2 instance using the latest version of the AWS launch template `lt-gitlab-runner-ububtu-2204` (in `us-east-2` region). On the moment of this document creation the template has the following settings
     * Launch template ID: `lt-0123456789abcdefg`
     * Launch template name: `lt-gitlab-runner-ububtu-2204`
-    * Default version: `nn`
+    * Default version: `NN`
     * AMI ID: `ami-0a695f0d95cefc163` (`amazon/ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-20230325`)
     * Instance type: `m5a.xlarge`
     * Security group IDs
