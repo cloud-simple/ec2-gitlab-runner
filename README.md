@@ -80,7 +80,7 @@
 * The following packates are installed and configured
     * `kubectl`, `helm`, `docker-ce`, `aws` cli, `gitlab-runner`
 * Example configuration file for `gitlab-runner` (created by these steps on `/etc/gitlab-runner/config.toml` path) is available in `examples` dir of this repo, see [examples/config.toml](examples/config.toml)
-* The foolowing cron job are also created to clean stale docker artefacts
+* The following cron job are also created to clean stale docker artefacts
     * `/etc/cron.hourly/docker-prune` - writes logs to `/var/log/docker-prune.log`
     * `/etc/cron.weekly/docker-rm-stales` - writes logs to `/var/log/docker-restart.log`
 
