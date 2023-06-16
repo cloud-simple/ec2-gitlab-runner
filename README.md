@@ -54,7 +54,7 @@
         * User data: See in `user-data` dir of this repo
             * [User data content](user-data/user-data.content)
             * [User data MD5 sum](user-data/user-data.md5sum)
-1. Configure all `kubectl` contexts for `gitlab-runner` linux user on the create EC2 instance:
+1. Configure all `kubectl` contexts for `gitlab-runner` linux user on the created EC2 instance:
     * Make SSH connection to the instance with `ubuntu` user and SSH key pair used for EC2 setup (`ec2init` above)
     * Switch to user `gitlab-runner` with the following command
         * `sudo -i -u gitlab-runner`
@@ -68,7 +68,7 @@
         * `sudo -i`
     * Run the following command as root
         * `/root/scripts/register-gitlab-runner.sh <TOKEN>`
-1. Provide SSH access to team members for the create EC2 instance:
+1. Provide SSH access to team members for the created EC2 instance:
     * Make SSH connection to the instance with `ubuntu` user and SSH key pair used for EC2 setup (`ec2init` above) having SSH key for `git@github.com:example-org/docs/team/public.git` repo forwarded with SSH agent
     * Run the following command as user `ubuntu`
         *  `/home/ubuntu/scripts/add-users.sh`
