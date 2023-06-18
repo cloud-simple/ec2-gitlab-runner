@@ -28,12 +28,13 @@ apt-get install -qqy apt-transport-https ca-certificates software-properties-com
 
 echo "== log: apt-get update, upgrade, install aux tools: DONE"
 ######### ######### ######### ######### ######### #########
-curl -fsS --max-time 50 -L -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg \
-  "https://packages.cloud.google.com/apt/doc/apt-key.gpg" || \
-  { echo "== err: timeout on downloading 'kubernetes-archive-keyring.gpg'; exiting" ; exit 255 ; }
+curl -fsS --max-time 50 -L -o /root/downloads/kubectl.pub "https://packages.cloud.google.com/apt/doc/apt-key.gpg" || \
+  { echo "== err: timeout on downloading 'kubectl.pub'; exiting" ; exit 255 ; }
+
+cat /root/downloads/kubectl.pub | gpg --dearmor -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg
 
 echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | \
-  tee /etc/apt/sources.list.d/kubernetes.list
+  tee /etc/apt/sources.list.d/kubernetes.list > /dev/null
 
 apt-get update
 apt-get install -qqy kubectl
@@ -46,7 +47,7 @@ curl -fsS --max-time 50 -L -o /root/downloads/helm.pub "https://baltocdn.com/hel
 cat /root/downloads/helm.pub | gpg --dearmor -o /usr/share/keyrings/helm.gpg
 
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | \
-  tee /etc/apt/sources.list.d/helm-stable-debian.list > /dev/null
+  tee /etc/apt/sources.list.d/helm.list > /dev/null
 
 apt-get update
 apt-get install -qqy helm
