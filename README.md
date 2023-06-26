@@ -1,4 +1,4 @@
-> Instructions on how to install, configure, and upgrade **GitLab runner** as AWS EC2 instance
+> Instructions on how to install, configure, and upgrade **GitLab runner** as AWS EC2 instance to be able to build and deploy to AWS EKS clusters with GitLab CI/CD pipelines
 
 ## General info
 
